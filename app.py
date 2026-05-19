@@ -226,23 +226,28 @@ st.markdown("---")
 
 # ── Ticker Input ──────────────────────────────────────────────────────────────
 
+default_a = next((o for o in TICKER_OPTIONS if o.startswith("AAPL —")), TICKER_OPTIONS[0])
+default_b = next((o for o in TICKER_OPTIONS if o.startswith("MSFT —")), TICKER_OPTIONS[1])
+
 col_a, col_b, col_btn = st.columns([3, 3, 1])
 
 with col_a:
-    ticker_a = st.text_input(
-        "🔵 Company A — enter ticker",
-        value="AAPL",
-        placeholder="e.g. AAPL, ARM, NVDA",
-        help="Type any US-listed stock ticker symbol",
-    ).upper().strip()
+    sel_a = st.selectbox(
+        "🔵 Company A",
+        options=TICKER_OPTIONS,
+        index=TICKER_OPTIONS.index(default_a),
+        help="Type to search by ticker or company name",
+    )
+    ticker_a = parse_ticker(sel_a)
 
 with col_b:
-    ticker_b = st.text_input(
-        "🟠 Company B — enter ticker",
-        value="MSFT",
-        placeholder="e.g. MSFT, TSLA, META",
-        help="Type any US-listed stock ticker symbol",
-    ).upper().strip()
+    sel_b = st.selectbox(
+        "🟠 Company B",
+        options=TICKER_OPTIONS,
+        index=TICKER_OPTIONS.index(default_b),
+        help="Type to search by ticker or company name",
+    )
+    ticker_b = parse_ticker(sel_b)
 
 with col_btn:
     st.write("")
