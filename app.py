@@ -155,35 +155,34 @@ def get_top_movers(tickers):
     except Exception:
         return pd.DataFrame()
 
+# ── CSS: sticky input row + watchlist tooltips ────────────────────────────────
+
+st.markdown("""
+<style>
+/* Sticky input row */
+div[data-testid="stMain"] > div > div.block-container > div[data-testid="stVerticalBlock"]
+  > div[data-testid="stVerticalBlock"]:nth-child(3) {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: #0e1117;
+    padding-bottom: 8px;
+}
+/* CSS tooltip for watchlist rows */
+.wl-row { position: relative; display: flex; justify-content: space-between;
+           padding: 6px 4px; border-bottom: 1px solid #333; cursor: default; }
+.wl-tt  { display: none; position: absolute; left: 0; top: 110%; min-width: 200px;
+           background: #1e2130; color: #e0e0e0; font-size: 0.78rem; padding: 5px 8px;
+           border-radius: 5px; border: 1px solid #444; z-index: 9999;
+           white-space: normal; line-height: 1.4; pointer-events: none; }
+.wl-row:hover .wl-tt { display: block; }
+</style>
+""", unsafe_allow_html=True)
+
 with st.sidebar:
-    # ── Company Inputs (always visible) ──────────────────────────────────────
-    st.markdown("### 🔍 Compare Stocks")
-    default_a = next((o for o in TICKER_OPTIONS if o.startswith("AAPL —")), TICKER_OPTIONS[0])
-    default_b = next((o for o in TICKER_OPTIONS if o.startswith("MSFT —")), TICKER_OPTIONS[1])
-
-    sel_a = st.selectbox(
-        "🔵 Company A",
-        options=TICKER_OPTIONS,
-        index=TICKER_OPTIONS.index(default_a),
-        help="Type a ticker (e.g. AAPL) or company name to search",
-    )
-    ticker_a = parse_ticker(sel_a)
-
-    sel_b = st.selectbox(
-        "🟠 Company B",
-        options=TICKER_OPTIONS,
-        index=TICKER_OPTIONS.index(default_b),
-        help="Type a ticker (e.g. MSFT) or company name to search",
-    )
-    ticker_b = parse_ticker(sel_b)
-
-    compare_clicked = st.button("Compare ▶", type="primary", use_container_width=True)
-
-    st.markdown("---")
-
     # ── Top Movers ────────────────────────────────────────────────────────────
     st.markdown("## 🚀 Top Movers Today")
-    st.caption("Growth watchlist · Hover for details · Refreshed every 5 min")
+    st.caption("Growth watchlist · Hover a ticker for details · Refreshed every 5 min")
 
     movers = get_top_movers(GROWTH_WATCHLIST)
 
@@ -193,16 +192,15 @@ with st.sidebar:
             price = row["Price ($)"]
             arrow = "▲" if chg >= 0 else "▼"
             color = "#27ae60" if chg >= 0 else "#e74c3c"
-            tooltip = WATCHLIST_NAMES.get(ticker, ticker)
+            desc = WATCHLIST_NAMES.get(ticker, ticker)
             st.markdown(
-                f"<div title='{tooltip}' style='display:flex;justify-content:space-between;"
-                f"padding:6px 4px;border-bottom:1px solid #333;cursor:default;'>"
-                f"<span style='font-weight:600;'>{ticker}</span>"
-                f"<span style='color:{color};font-weight:600;'>"
-                f"{arrow} {chg:+.2f}%</span>"
-                f"<span style='color:#aaa;font-size:0.85rem;'>${price:.2f}</span>"
+                f"<div class='wl-row'>"
+                f"<span style='font-weight:600'>{ticker}</span>"
+                f"<span style='color:{color};font-weight:600'>{arrow} {chg:+.2f}%</span>"
+                f"<span style='color:#aaa;font-size:0.85rem'>${price:.2f}</span>"
+                f"<div class='wl-tt'>{desc}</div>"
                 f"</div>",
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
         st.markdown("")
         st.caption("Source: Yahoo Finance")
@@ -225,6 +223,31 @@ st.markdown(
     "Prices from **Yahoo Finance**."
 )
 st.markdown("---")
+
+# ── Ticker Input ──────────────────────────────────────────────────────────────
+
+col_a, col_b, col_btn = st.columns([3, 3, 1])
+
+with col_a:
+    ticker_a = st.text_input(
+        "🔵 Company A — enter ticker",
+        value="AAPL",
+        placeholder="e.g. AAPL, ARM, NVDA",
+        help="Type any US-listed stock ticker symbol",
+    ).upper().strip()
+
+with col_b:
+    ticker_b = st.text_input(
+        "🟠 Company B — enter ticker",
+        value="MSFT",
+        placeholder="e.g. MSFT, TSLA, META",
+        help="Type any US-listed stock ticker symbol",
+    ).upper().strip()
+
+with col_btn:
+    st.write("")
+    st.write("")
+    compare_clicked = st.button("Compare ▶", type="primary", use_container_width=True)
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
