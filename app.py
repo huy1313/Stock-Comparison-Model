@@ -2,19 +2,18 @@
 app.py — Streamlit web interface
 =================================
 Structure:
-  1. Page config & header
-  2. Searchable ticker dropdowns (autocomplete from SEC EDGAR list)
-  3. Data fetch (calls data.py)
-  4. Summary metrics table
-  5. Interactive Plotly charts (hover tooltips, no cramped labels)
-  6. Raw Data + Calculations tables with color coding
+  1. Sidebar — Top Growth Stocks Today (live, refreshed every 5 min)
+  2. Header + searchable ticker dropdowns (embedded list, no API dependency)
+  3. Summary table + metric explanations
+  4. Four separate full-width interactive charts
+  5. Raw Data + Calculations tables with color coding
 """
 
 import streamlit as st
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import pandas as pd
-from data import build_dataset, calculate_metrics, get_ticker_options
+import yfinance as yf
+from data import build_dataset, calculate_metrics
 
 # ── Page Setup ────────────────────────────────────────────────────────────────
 
@@ -22,79 +21,182 @@ st.set_page_config(
     page_title="Stock Comparison Model",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
-st.markdown("""
-    <style>
-    thead tr th { font-size: 0.9rem !important; font-weight: 600 !important; }
-    div[data-testid="stSelectbox"] label { font-weight: 600; }
-    </style>
-""", unsafe_allow_html=True)
+# ── Popular Tickers (embedded — no API call needed, instant autocomplete) ─────
+# Format: ("TICKER", "Company Name")
+
+POPULAR_TICKERS = [
+    ("AAPL","Apple Inc."), ("MSFT","Microsoft Corporation"), ("GOOGL","Alphabet Inc. (Google)"),
+    ("GOOG","Alphabet Inc. Class C"), ("AMZN","Amazon.com Inc."), ("NVDA","NVIDIA Corporation"),
+    ("TSLA","Tesla Inc."), ("META","Meta Platforms Inc."), ("BRK.B","Berkshire Hathaway Inc."),
+    ("JPM","JPMorgan Chase & Co."), ("V","Visa Inc."), ("JNJ","Johnson & Johnson"),
+    ("WMT","Walmart Inc."), ("PG","Procter & Gamble Co."), ("MA","Mastercard Inc."),
+    ("HD","Home Depot Inc."), ("DIS","Walt Disney Co."), ("BAC","Bank of America Corp."),
+    ("ADBE","Adobe Inc."), ("CRM","Salesforce Inc."), ("NFLX","Netflix Inc."),
+    ("INTC","Intel Corporation"), ("AMD","Advanced Micro Devices Inc."), ("QCOM","Qualcomm Inc."),
+    ("PYPL","PayPal Holdings Inc."), ("UBER","Uber Technologies Inc."), ("SHOP","Shopify Inc."),
+    ("SQ","Block Inc."), ("SNOW","Snowflake Inc."), ("PLTR","Palantir Technologies Inc."),
+    ("COIN","Coinbase Global Inc."), ("ROKU","Roku Inc."), ("ABNB","Airbnb Inc."),
+    ("DASH","DoorDash Inc."), ("RBLX","Roblox Corporation"), ("U","Unity Software Inc."),
+    ("NET","Cloudflare Inc."), ("DDOG","Datadog Inc."), ("ZS","Zscaler Inc."),
+    ("CRWD","CrowdStrike Holdings Inc."), ("OKTA","Okta Inc."), ("TWLO","Twilio Inc."),
+    ("ZM","Zoom Video Communications"), ("DOCU","DocuSign Inc."), ("SPOT","Spotify Technology"),
+    ("LYFT","Lyft Inc."), ("PINS","Pinterest Inc."), ("SNAP","Snap Inc."),
+    ("BABA","Alibaba Group Holding"), ("PDD","PDD Holdings Inc."), ("JD","JD.com Inc."),
+    ("NIO","NIO Inc."), ("XPEV","XPeng Inc."), ("LI","Li Auto Inc."),
+    ("GS","Goldman Sachs Group Inc."), ("MS","Morgan Stanley"), ("WFC","Wells Fargo & Co."),
+    ("C","Citigroup Inc."), ("AXP","American Express Co."), ("BLK","BlackRock Inc."),
+    ("SCHW","Charles Schwab Corp."), ("USB","U.S. Bancorp"), ("PNC","PNC Financial Services"),
+    ("UNH","UnitedHealth Group Inc."), ("CVS","CVS Health Corp."), ("ABBV","AbbVie Inc."),
+    ("LLY","Eli Lilly and Co."), ("PFE","Pfizer Inc."), ("MRK","Merck & Co. Inc."),
+    ("BMY","Bristol-Myers Squibb Co."), ("GILD","Gilead Sciences Inc."), ("AMGN","Amgen Inc."),
+    ("BIIB","Biogen Inc."), ("MRNA","Moderna Inc."), ("BNTX","BioNTech SE"),
+    ("XOM","Exxon Mobil Corp."), ("CVX","Chevron Corp."), ("COP","ConocoPhillips"),
+    ("SLB","Schlumberger Ltd."), ("EOG","EOG Resources Inc."), ("MPC","Marathon Petroleum Corp."),
+    ("NEE","NextEra Energy Inc."), ("DUK","Duke Energy Corp."), ("SO","Southern Co."),
+    ("AEP","American Electric Power"), ("D","Dominion Energy Inc."), ("EXC","Exelon Corp."),
+    ("CAT","Caterpillar Inc."), ("DE","Deere & Company"), ("HON","Honeywell International"),
+    ("GE","General Electric Co."), ("MMM","3M Company"), ("RTX","RTX Corporation"),
+    ("BA","Boeing Co."), ("LMT","Lockheed Martin Corp."), ("NOC","Northrop Grumman Corp."),
+    ("F","Ford Motor Co."), ("GM","General Motors Co."), ("RIVN","Rivian Automotive Inc."),
+    ("LCID","Lucid Group Inc."), ("STLA","Stellantis N.V."), ("TM","Toyota Motor Corp."),
+    ("MCD","McDonald's Corp."), ("SBUX","Starbucks Corp."), ("CMG","Chipotle Mexican Grill"),
+    ("YUM","Yum! Brands Inc."), ("DPZ","Domino's Pizza Inc."), ("QSR","Restaurant Brands"),
+    ("KO","Coca-Cola Co."), ("PEP","PepsiCo Inc."), ("MDLZ","Mondelez International"),
+    ("GIS","General Mills Inc."), ("K","Kellanova"), ("HSY","Hershey Co."),
+    ("NKE","Nike Inc."), ("LULU","Lululemon Athletica Inc."), ("UA","Under Armour Inc."),
+    ("TGT","Target Corp."), ("COST","Costco Wholesale Corp."), ("AMZN","Amazon.com Inc."),
+    ("LOW","Lowe's Companies Inc."), ("TJX","TJX Companies Inc."), ("ROST","Ross Stores Inc."),
+    ("T","AT&T Inc."), ("VZ","Verizon Communications"), ("TMUS","T-Mobile US Inc."),
+    ("CMCSA","Comcast Corp."), ("CHTR","Charter Communications"), ("NFLX","Netflix Inc."),
+    ("ORCL","Oracle Corporation"), ("IBM","IBM Corp."), ("SAP","SAP SE"),
+    ("NOW","ServiceNow Inc."), ("WDAY","Workday Inc."), ("INTU","Intuit Inc."),
+    ("AMAT","Applied Materials Inc."), ("LRCX","Lam Research Corp."), ("KLAC","KLA Corp."),
+    ("ASML","ASML Holding N.V."), ("TSM","Taiwan Semiconductor"), ("MU","Micron Technology"),
+    ("WBA","Walgreens Boots Alliance"), ("MCK","McKesson Corp."), ("ABC","AmerisourceBergen"),
+    ("SPG","Simon Property Group"), ("PLD","Prologis Inc."), ("AMT","American Tower Corp."),
+    ("O","Realty Income Corp."), ("WELL","Welltower Inc."), ("PSA","Public Storage"),
+]
+
+# Build the dropdown option strings: "AAPL — Apple Inc."
+TICKER_OPTIONS = sorted(
+    [f"{ticker} — {name}" for ticker, name in POPULAR_TICKERS],
+    key=lambda x: x.split(" — ")[0]
+)
+
+def parse_ticker(selection: str) -> str:
+    return selection.split(" — ")[0].strip().upper()
+
+# ── Sidebar — Top Growth Stocks Today ────────────────────────────────────────
+
+GROWTH_WATCHLIST = [
+    "NVDA","META","AMZN","GOOGL","MSFT","AAPL","TSLA","AMD","CRM","NOW",
+    "ADBE","NFLX","SNOW","PLTR","CRWD","NET","DDOG","SHOP","UBER","COIN",
+    "MSTR","ARM","SMCI","AVGO","ORCL","PANW","ZS","OKTA","FTNT","INTU",
+]
+
+@st.cache_data(ttl=300)   # Refresh every 5 minutes
+def get_top_movers(tickers):
+    try:
+        raw = yf.download(tickers, period="2d", progress=False, auto_adjust=True)
+        if raw.empty:
+            return pd.DataFrame()
+
+        # Handle MultiIndex columns from multi-ticker download
+        if isinstance(raw.columns, pd.MultiIndex):
+            closes = raw["Close"]
+        else:
+            closes = raw[["Close"]]
+            closes.columns = tickers[:1]
+
+        pct = closes.pct_change().iloc[-1].dropna()
+        prices = closes.iloc[-1].dropna()
+
+        df = pd.DataFrame({"Change (%)": pct * 100, "Price ($)": prices})
+        return df.sort_values("Change (%)", ascending=False).round(2)
+    except Exception:
+        return pd.DataFrame()
+
+with st.sidebar:
+    st.markdown("## 🚀 Top Movers Today")
+    st.caption("Growth stock watchlist · Refreshed every 5 min")
+
+    movers = get_top_movers(GROWTH_WATCHLIST)
+
+    if not movers.empty:
+        for ticker, row in movers.head(10).iterrows():
+            chg = row["Change (%)"]
+            price = row["Price ($)"]
+            arrow = "▲" if chg >= 0 else "▼"
+            color = "#27ae60" if chg >= 0 else "#e74c3c"
+            st.markdown(
+                f"<div style='display:flex;justify-content:space-between;"
+                f"padding:6px 4px;border-bottom:1px solid #333;'>"
+                f"<span style='font-weight:600;'>{ticker}</span>"
+                f"<span style='color:{color};font-weight:600;'>"
+                f"{arrow} {chg:+.2f}%</span>"
+                f"<span style='color:#aaa;font-size:0.85rem;'>${price:.2f}</span>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        st.markdown("")
+        st.caption("Source: Yahoo Finance")
+    else:
+        st.info("Market data unavailable right now.")
+
+    st.markdown("---")
+    st.markdown("### ℹ️ About")
+    st.caption(
+        "This model compares US-listed public company stocks using data from "
+        "SEC EDGAR (10-K annual filings) and Yahoo Finance. "
+        "ETFs and mutual funds are not supported."
+    )
 
 # ── Header ────────────────────────────────────────────────────────────────────
 
 st.title("📊 Stock Comparison Model")
 st.markdown(
     "Compare two US-listed public companies across 10 years of fundamental data. "
-    "Fundamentals from **SEC EDGAR** (official 10-K annual filings). "
-    "Stock prices from **Yahoo Finance**. &nbsp;⚠️ ETFs and mutual funds are not supported."
+    "Fundamentals from **SEC EDGAR** (official 10-K filings). "
+    "Prices from **Yahoo Finance**."
 )
 st.markdown("---")
 
-# ── Ticker Autocomplete ───────────────────────────────────────────────────────
+# ── Ticker Input ──────────────────────────────────────────────────────────────
 
-# Load the full EDGAR ticker list once (cached 24h)
-with st.spinner("Loading ticker list from SEC EDGAR..."):
-    try:
-        ticker_options = get_ticker_options()
-    except Exception:
-        ticker_options = []
-        st.warning("Could not load ticker list. You can still type a ticker manually.")
-
-def parse_ticker(selection: str) -> str:
-    """Extract the ticker symbol from a 'TICKER — Company Name' string."""
-    return selection.split(" — ")[0].strip().upper()
-
-# Default selections
-default_a = next((o for o in ticker_options if o.startswith("AAPL —")), ticker_options[0] if ticker_options else "")
-default_b = next((o for o in ticker_options if o.startswith("MSFT —")), ticker_options[1] if ticker_options else "")
+default_a = next((o for o in TICKER_OPTIONS if o.startswith("AAPL —")), TICKER_OPTIONS[0])
+default_b = next((o for o in TICKER_OPTIONS if o.startswith("MSFT —")), TICKER_OPTIONS[1])
 
 col_a, col_b, col_btn = st.columns([3, 3, 1])
 
 with col_a:
-    if ticker_options:
-        sel_a = st.selectbox(
-            "🔵 Company A — type to search",
-            options=ticker_options,
-            index=ticker_options.index(default_a) if default_a in ticker_options else 0,
-            help="Search by ticker symbol or company name",
-        )
-        ticker_a = parse_ticker(sel_a)
-    else:
-        ticker_a = st.text_input("Company A Ticker", value="AAPL").upper().strip()
+    sel_a = st.selectbox(
+        "🔵 Company A — type to search",
+        options=TICKER_OPTIONS,
+        index=TICKER_OPTIONS.index(default_a),
+        help="Type a ticker (e.g. AAPL) or company name to search",
+    )
+    ticker_a = parse_ticker(sel_a)
 
 with col_b:
-    if ticker_options:
-        sel_b = st.selectbox(
-            "🟠 Company B — type to search",
-            options=ticker_options,
-            index=ticker_options.index(default_b) if default_b in ticker_options else 0,
-            help="Search by ticker symbol or company name",
-        )
-        ticker_b = parse_ticker(sel_b)
-    else:
-        ticker_b = st.text_input("Company B Ticker", value="MSFT").upper().strip()
+    sel_b = st.selectbox(
+        "🟠 Company B — type to search",
+        options=TICKER_OPTIONS,
+        index=TICKER_OPTIONS.index(default_b),
+        help="Type a ticker (e.g. MSFT) or company name to search",
+    )
+    ticker_b = parse_ticker(sel_b)
 
 with col_btn:
     st.write("")
     st.write("")
     compare_clicked = st.button("Compare ▶", type="primary", use_container_width=True)
 
-# ── Helper ────────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def fmt(value, format_str):
-    """Safely format a number, returning '—' for None/NaN."""
     try:
         if value is None or pd.isna(value):
             return "—"
@@ -108,10 +210,57 @@ COLOR_A   = "#1a56db"
 COLOR_B   = "#e07b00"
 
 MONTH_NAMES = {
-    1:"January", 2:"February", 3:"March", 4:"April",
-    5:"May", 6:"June", 7:"July", 8:"August",
-    9:"September", 10:"October", 11:"November", 12:"December"
+    1:"January", 2:"February", 3:"March", 4:"April", 5:"May", 6:"June",
+    7:"July", 8:"August", 9:"September", 10:"October", 11:"November", 12:"December"
 }
+
+HOVER_LABEL = dict(
+    bgcolor="rgba(20, 20, 35, 0.95)",
+    font=dict(color="white", size=14, family="Arial"),
+    bordercolor="#4a90d9",
+    borderwidth=1,
+    namelength=-1,
+)
+
+def chart_layout(fig, title, y_title):
+    fig.update_layout(
+        title=dict(text=title, font=dict(size=16, color="#111", family="Arial"), x=0),
+        font=dict(family="Arial", size=13, color="#222"),
+        plot_bgcolor="white", paper_bgcolor="white",
+        height=380,
+        margin=dict(t=60, b=55, l=70, r=30),
+        hovermode="x unified",
+        hoverlabel=HOVER_LABEL,
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.02,
+            xanchor="right", x=1,
+            font=dict(size=13), bgcolor="rgba(255,255,255,0.9)",
+            bordercolor="#ddd", borderwidth=1,
+        ),
+    )
+    fig.update_xaxes(
+        title_text="Fiscal Year",
+        tickformat="d", dtick=1, tickangle=-30,
+        tickfont=dict(size=12, color="#333"),
+        showgrid=True, gridcolor="#ececec",
+        linecolor="#ccc", linewidth=1,
+    )
+    fig.update_yaxes(
+        title_text=y_title,
+        tickfont=dict(size=12, color="#333"),
+        showgrid=True, gridcolor="#ececec",
+        linecolor="#ccc", linewidth=1,
+        zeroline=True, zerolinecolor="#bbb",
+    )
+    return fig
+
+def get_vals(series, years, scale=1):
+    return [
+        round(series.get(y) / scale, 3)
+        if (series.get(y) is not None and pd.notna(series.get(y)))
+        else None
+        for y in years
+    ]
 
 # ── Main Logic ────────────────────────────────────────────────────────────────
 
@@ -155,7 +304,6 @@ if compare_clicked:
             f"Fiscal Year ends: <b>{MONTH_NAMES.get(data_a['fy_end_month'], '?')}</b></p></div>",
             unsafe_allow_html=True
         )
-
     with h_col_b:
         st.markdown(
             f"<div style='background:#fff3e0;padding:14px;border-radius:8px;'>"
@@ -167,24 +315,21 @@ if compare_clicked:
 
     st.write("")
 
-    # ── Most Recent Year Summary ──────────────────────────────────────────────
+    # ── Summary Table ─────────────────────────────────────────────────────────
 
-    years_with_pe = (
-        set(metrics_a["pe"].dropna().index) &
-        set(metrics_b["pe"].dropna().index)
-    )
+    years_with_pe = set(metrics_a["pe"].dropna().index) & set(metrics_b["pe"].dropna().index)
     last_year = max(years_with_pe) if years_with_pe else 2024
 
     st.markdown(f"### Most Recent Year ({last_year}) — Side by Side")
 
     summary_rows = [
-        ("Stock Price",          data_a["price"].get(last_year),          data_b["price"].get(last_year),          "${:.2f}"),
-        ("Earnings Per Share",   metrics_a["eps"].get(last_year),         metrics_b["eps"].get(last_year),         "${:.2f}"),
-        ("P/E Ratio",            metrics_a["pe"].get(last_year),          metrics_b["pe"].get(last_year),          "{:.1f}×"),
-        ("P/B Ratio",            metrics_a["pb"].get(last_year),          metrics_b["pb"].get(last_year),          "{:.1f}×"),
-        ("P/CF Ratio",           metrics_a["pcf"].get(last_year),         metrics_b["pcf"].get(last_year),         "{:.1f}×"),
-        ("Revenue Growth (YoY)", metrics_a["rev_growth"].get(last_year),  metrics_b["rev_growth"].get(last_year),  "{:.1%}"),
-        ("Net Income Growth",    metrics_a["ni_growth"].get(last_year),   metrics_b["ni_growth"].get(last_year),   "{:.1%}"),
+        ("Stock Price",               data_a["price"].get(last_year),          data_b["price"].get(last_year),          "${:.2f}"),
+        ("EPS (Earnings Per Share)",  metrics_a["eps"].get(last_year),         metrics_b["eps"].get(last_year),         "${:.2f}"),
+        ("P/E Ratio",                 metrics_a["pe"].get(last_year),          metrics_b["pe"].get(last_year),          "{:.1f}×"),
+        ("P/B Ratio",                 metrics_a["pb"].get(last_year),          metrics_b["pb"].get(last_year),          "{:.1f}×"),
+        ("P/CF Ratio",                metrics_a["pcf"].get(last_year),         metrics_b["pcf"].get(last_year),         "{:.1f}×"),
+        ("Revenue Growth (YoY %)",    metrics_a["rev_growth"].get(last_year),  metrics_b["rev_growth"].get(last_year),  "{:.1%}"),
+        ("Net Income Growth (YoY %)", metrics_a["ni_growth"].get(last_year),   metrics_b["ni_growth"].get(last_year),   "{:.1%}"),
     ]
 
     summary_df = pd.DataFrame({
@@ -195,153 +340,149 @@ if compare_clicked:
 
     st.dataframe(summary_df, use_container_width=True)
 
+    # ── Metric Explanations ───────────────────────────────────────────────────
+
+    with st.expander("ℹ️ What do these metrics mean? (click to expand)"):
+        st.markdown("""
+**Stock Price** — The closing price of the stock on the company's fiscal year-end date.
+Used as the starting point for all valuation ratios below.
+
+---
+
+**EPS — Earnings Per Share** — Net Income ÷ Shares Outstanding.
+Tells you how much profit the company generates *for each share* of stock.
+A higher EPS means each share represents more earning power.
+*Example: EPS of $6.20 means the company earned $6.20 for every share outstanding.*
+
+---
+
+**P/E Ratio — Price-to-Earnings** — Stock Price ÷ EPS.
+The most widely used valuation ratio. Tells you how much investors are paying
+for every $1 of the company's annual earnings.
+- A **high P/E** (e.g. 40×) means investors expect strong future growth — or the stock may be expensive.
+- A **low P/E** (e.g. 10×) means it's cheaper relative to earnings — possibly undervalued or a slower-growing company.
+*Example: P/E of 37× means you're paying $37 for every $1 of annual profit.*
+
+---
+
+**P/B Ratio — Price-to-Book** — Stock Price ÷ Book Value Per Share.
+Book Value = Total Assets minus Total Liabilities (what the company would be worth if liquidated).
+- A **high P/B** means investors are paying a large premium over accounting value — common in tech companies with strong brand/IP.
+- A **low P/B** can indicate undervaluation, or a capital-heavy business with thin margins.
+*Example: P/B of 61× (Apple) reflects that its brand and ecosystem are worth far more than its balance sheet.*
+
+---
+
+**P/CF Ratio — Price-to-Cash-Flow** — Stock Price ÷ Operating Cash Flow Per Share.
+Similar to P/E, but uses real cash generated instead of accounting earnings.
+Cash flow is harder to manipulate than net income, making this a more conservative and reliable measure.
+- Lower P/CF = cheaper relative to cash generation.
+
+---
+
+**Revenue Growth (YoY %)** — (This Year Revenue − Last Year Revenue) ÷ Last Year Revenue.
+YoY = Year-over-Year. Shows how fast the company is growing its total sales.
+Strong, consistent revenue growth is the primary indicator of a growth company.
+
+---
+
+**Net Income Growth (YoY %)** — Same formula applied to Net Income (profit after all expenses and taxes).
+Shows whether the company is becoming more or less profitable over time.
+Revenue can grow while net income falls if costs are rising faster — this metric catches that.
+        """)
+
     # ── Charts ────────────────────────────────────────────────────────────────
 
     st.markdown("---")
     st.markdown("### 10-Year Historical Charts")
-    st.caption("💡 Hover over any point or bar to see exact values. Use the toolbar (top-right of each chart) to zoom, pan, or download.")
+    st.caption("💡 Hover over any point or bar to see exact values for both companies. Use the toolbar (top-right) to zoom, pan, or save.")
 
-    def get_vals(series, years, scale=1):
-        return [
-            round(series.get(y) / scale, 2)
-            if (series.get(y) is not None and pd.notna(series.get(y)))
-            else None
-            for y in years
-        ]
+    # ── Chart 1: Annual Revenue ───────────────────────────────────────────────
 
-    def apply_chart_style(fig):
-        """Apply consistent, readable styling to any Plotly figure."""
-        fig.update_layout(
-            font=dict(family="Arial", size=13, color="#222"),
-            plot_bgcolor="white",
-            paper_bgcolor="white",
-            legend=dict(
-                orientation="h",
-                yanchor="bottom", y=1.04,
-                xanchor="right", x=1,
-                font=dict(size=13, color="#222"),
-                bgcolor="rgba(255,255,255,0.8)",
-                bordercolor="#ddd",
-                borderwidth=1,
-            ),
-            margin=dict(t=70, b=55, l=70, r=30),
-            hovermode="x unified",   # Shows all series in one tooltip on hover
-            hoverlabel=dict(
-                bgcolor="white",
-                font_size=13,
-                font_family="Arial",
-                bordercolor="#ddd",
-            ),
-        )
-        fig.update_xaxes(
-            tickformat="d",
-            dtick=1,
-            tickfont=dict(size=12, color="#333"),
-            title_font=dict(size=13),
-            showgrid=True, gridcolor="#ececec", gridwidth=1,
-            linecolor="#ccc", linewidth=1,
-            tickangle=-30,
-        )
-        fig.update_yaxes(
-            tickfont=dict(size=12, color="#333"),
-            title_font=dict(size=13),
-            showgrid=True, gridcolor="#ececec", gridwidth=1,
-            linecolor="#ccc", linewidth=1,
-            zeroline=True, zerolinecolor="#bbb", zerolinewidth=1,
-        )
-        for ann in fig.layout.annotations:
-            ann.font = dict(size=14, color="#111", family="Arial")
-        return fig
+    rev_a = get_vals(data_a["revenue"], YEARS, scale=1e9)
+    rev_b = get_vals(data_b["revenue"], YEARS, scale=1e9)
 
-    # ── Chart 1: Revenue & Net Income ────────────────────────────────────────
+    fig_rev = go.Figure()
+    fig_rev.add_trace(go.Bar(
+        name=ticker_a, x=YEARS, y=rev_a, marker_color=COLOR_A, opacity=0.88,
+        hovertemplate=f"<b>{ticker_a}</b><br>Revenue: $%{{y:.2f}}B<extra></extra>",
+    ))
+    fig_rev.add_trace(go.Bar(
+        name=ticker_b, x=YEARS, y=rev_b, marker_color=COLOR_B, opacity=0.88,
+        hovertemplate=f"<b>{ticker_b}</b><br>Revenue: $%{{y:.2f}}B<extra></extra>",
+    ))
+    fig_rev.update_layout(barmode="group")
+    chart_layout(fig_rev, "📊 Annual Revenue", "Revenue ($B)")
+    st.plotly_chart(fig_rev, use_container_width=True)
 
-    fig1 = make_subplots(
-        rows=1, cols=2,
-        subplot_titles=("Annual Revenue ($B)", "Net Income ($B)"),
-        horizontal_spacing=0.13,
-    )
+    # ── Chart 2: Net Income ───────────────────────────────────────────────────
 
-    for col_idx, (key, ylabel) in enumerate([("revenue", "$B"), ("net_income", "$B")], 1):
-        vals_a = get_vals(data_a[key], YEARS, scale=1e9)
-        vals_b = get_vals(data_b[key], YEARS, scale=1e9)
+    ni_a = get_vals(data_a["net_income"], YEARS, scale=1e9)
+    ni_b = get_vals(data_b["net_income"], YEARS, scale=1e9)
 
-        fig1.add_trace(go.Bar(
-            name=ticker_a, x=YEARS, y=vals_a,
-            marker_color=COLOR_A, opacity=0.85,
-            legendgroup="g1a", showlegend=(col_idx == 1),
-            hovertemplate=f"<b>{ticker_a}</b><br>%{{x}}: $%{{y:.2f}}B<extra></extra>",
-        ), row=1, col=col_idx)
+    fig_ni = go.Figure()
+    fig_ni.add_trace(go.Bar(
+        name=ticker_a, x=YEARS, y=ni_a, marker_color=COLOR_A, opacity=0.88,
+        hovertemplate=f"<b>{ticker_a}</b><br>Net Income: $%{{y:.2f}}B<extra></extra>",
+    ))
+    fig_ni.add_trace(go.Bar(
+        name=ticker_b, x=YEARS, y=ni_b, marker_color=COLOR_B, opacity=0.88,
+        hovertemplate=f"<b>{ticker_b}</b><br>Net Income: $%{{y:.2f}}B<extra></extra>",
+    ))
+    fig_ni.update_layout(barmode="group")
+    chart_layout(fig_ni, "💰 Net Income", "Net Income ($B)")
+    st.plotly_chart(fig_ni, use_container_width=True)
 
-        fig1.add_trace(go.Bar(
-            name=ticker_b, x=YEARS, y=vals_b,
-            marker_color=COLOR_B, opacity=0.85,
-            legendgroup="g1b", showlegend=(col_idx == 1),
-            hovertemplate=f"<b>{ticker_b}</b><br>%{{x}}: $%{{y:.2f}}B<extra></extra>",
-        ), row=1, col=col_idx)
+    # ── Chart 3: P/E Ratio ────────────────────────────────────────────────────
 
-    fig1.update_layout(barmode="group", height=450)
-    apply_chart_style(fig1)
-    st.plotly_chart(fig1, use_container_width=True)
+    pe_a = get_vals(metrics_a["pe"], YEARS)
+    pe_b = get_vals(metrics_b["pe"], YEARS)
 
-    # ── Chart 2: P/E Ratio & EPS ──────────────────────────────────────────────
+    fig_pe = go.Figure()
+    for ticker, vals, color in [(ticker_a, pe_a, COLOR_A), (ticker_b, pe_b, COLOR_B)]:
+        fig_pe.add_trace(go.Scatter(
+            name=ticker, x=YEARS, y=vals,
+            mode="lines+markers",
+            line=dict(color=color, width=2.5),
+            marker=dict(size=9, color=color, line=dict(width=2, color="white")),
+            hovertemplate=f"<b>{ticker}</b><br>P/E Ratio: %{{y:.1f}}×<extra></extra>",
+        ))
+    chart_layout(fig_pe, "📈 P/E Ratio — Price-to-Earnings", "P/E (×)")
+    st.plotly_chart(fig_pe, use_container_width=True)
 
-    fig2 = make_subplots(
-        rows=1, cols=2,
-        subplot_titles=("P/E Ratio (×)", "Earnings Per Share ($)"),
-        horizontal_spacing=0.13,
-    )
+    # ── Chart 4: Earnings Per Share ───────────────────────────────────────────
 
-    chart2_data = [
-        (get_vals(metrics_a["pe"], YEARS),  get_vals(metrics_b["pe"], YEARS),  "P/E",  "{:.1f}×", "$"),
-        (get_vals(metrics_a["eps"], YEARS), get_vals(metrics_b["eps"], YEARS), "EPS",  "${:.2f}",  ""),
-    ]
+    eps_a = get_vals(metrics_a["eps"], YEARS)
+    eps_b = get_vals(metrics_b["eps"], YEARS)
 
-    for col_idx, (vals_a, vals_b, label, hover_fmt, prefix) in enumerate(chart2_data, 1):
-        for ticker, vals, color, grp in [
-            (ticker_a, vals_a, COLOR_A, "g2a"),
-            (ticker_b, vals_b, COLOR_B, "g2b"),
-        ]:
-            fig2.add_trace(go.Scatter(
-                name=ticker, x=YEARS, y=vals,
-                mode="lines+markers",
-                line=dict(color=color, width=2.5),
-                marker=dict(size=8, color=color,
-                            line=dict(width=1.5, color="white")),
-                legendgroup=grp, showlegend=(col_idx == 1),
-                hovertemplate=(
-                    f"<b>{ticker}</b><br>%{{x}}: {prefix}%{{y:.2f}}"
-                    + ("×" if "P/E" in label else "")
-                    + "<extra></extra>"
-                ),
-            ), row=1, col=col_idx)
-
-    fig2.update_layout(height=450)
-    apply_chart_style(fig2)
-    st.plotly_chart(fig2, use_container_width=True)
+    fig_eps = go.Figure()
+    for ticker, vals, color in [(ticker_a, eps_a, COLOR_A), (ticker_b, eps_b, COLOR_B)]:
+        fig_eps.add_trace(go.Scatter(
+            name=ticker, x=YEARS, y=vals,
+            mode="lines+markers",
+            line=dict(color=color, width=2.5),
+            marker=dict(size=9, color=color, line=dict(width=2, color="white")),
+            hovertemplate=f"<b>{ticker}</b><br>EPS: $%{{y:.2f}}<extra></extra>",
+        ))
+    chart_layout(fig_eps, "💵 Earnings Per Share (EPS)", "EPS ($)")
+    st.plotly_chart(fig_eps, use_container_width=True)
 
     # ── Data Tables ───────────────────────────────────────────────────────────
 
     st.markdown("---")
     st.markdown("### 📋 Data Tables")
-    st.caption(
-        "Mirrors the Excel model structure — Raw Data (from SEC filings) and "
-        "Calculations (derived metrics). 🟢 Green = positive change &nbsp; 🔴 Red = negative change."
-    )
+    st.caption("🟢 Green = positive growth &nbsp;&nbsp; 🔴 Red = negative growth")
 
-    def to_m(series):
-        return series.apply(lambda x: round(x / 1e6, 1) if pd.notna(x) else None)
+    def to_m(s): return s.apply(lambda x: round(x/1e6,1) if pd.notna(x) else None)
+    def reindex_str(s):
+        r = s.reindex(YEARS); r.index = YEARS_STR; return r
 
-    def reindex_str(series):
-        s = series.reindex(YEARS)
-        s.index = YEARS_STR
-        return s
+    GROWTH_ROWS = ["Revenue Growth", "Net Income Growth", "EPS Growth"]
 
-    # ── Raw Data Section ──────────────────────────────────────────────────────
-
-    with st.expander("📥  Raw Data — sourced directly from SEC EDGAR 10-K filings", expanded=True):
-        raw_tab_a, raw_tab_b = st.tabs([f"🔵 {ticker_a}", f"🟠 {ticker_b}"])
-
-        for tab, ds in [(raw_tab_a, data_a), (raw_tab_b, data_b)]:
+    # Raw Data
+    with st.expander("📥  Raw Data — from SEC EDGAR 10-K filings", expanded=True):
+        rt_a, rt_b = st.tabs([f"🔵 {ticker_a}", f"🟠 {ticker_b}"])
+        for tab, ds in [(rt_a, data_a), (rt_b, data_b)]:
             with tab:
                 raw_df = pd.DataFrame({
                     "Revenue ($M)":        reindex_str(to_m(ds["revenue"])),
@@ -351,61 +492,43 @@ if compare_clicked:
                     "Op. Cash Flow ($M)":  reindex_str(to_m(ds["ocf"])),
                     "Stock Price ($)":     reindex_str(ds["price"]),
                 }).T
+                st.dataframe(raw_df.style.format("{:,.1f}", na_rep="—"), use_container_width=True)
 
-                st.dataframe(
-                    raw_df.style.format("{:,.1f}", na_rep="—"),
-                    use_container_width=True,
-                )
-
-    # ── Calculations Section ──────────────────────────────────────────────────
-
+    # Calculations
     with st.expander("🧮  Calculations — derived ratios & growth rates", expanded=True):
-        calc_tab_a, calc_tab_b = st.tabs([f"🔵 {ticker_a}", f"🟠 {ticker_b}"])
-
-        GROWTH_ROWS = ["Revenue Growth", "Net Income Growth", "EPS Growth"]
-
-        def build_calc_df(metrics):
-            return pd.DataFrame({
-                "EPS ($)":              reindex_str(metrics["eps"]),
-                "Book Value/Share ($)": reindex_str(metrics["bvps"]),
-                "CF/Share ($)":         reindex_str(metrics["cfps"]),
-                "P/E Ratio (×)":        reindex_str(metrics["pe"]),
-                "P/B Ratio (×)":        reindex_str(metrics["pb"]),
-                "P/CF Ratio (×)":       reindex_str(metrics["pcf"]),
-                "Revenue Growth":       reindex_str(metrics["rev_growth"]),
-                "Net Income Growth":    reindex_str(metrics["ni_growth"]),
-                "EPS Growth":           reindex_str(metrics["eps_growth"]),
-            }).T
-
-        def fmt_calc_cell(val, row_label):
-            if val is None or (isinstance(val, float) and pd.isna(val)):
-                return "—"
-            if row_label in GROWTH_ROWS:
-                return f"{val:.1%}"
-            if "Ratio" in row_label:
-                return f"{val:.1f}×"
-            return f"{val:.2f}"
+        ct_a, ct_b = st.tabs([f"🔵 {ticker_a}", f"🟠 {ticker_b}"])
 
         def color_growth(val):
-            if val is None or pd.isna(val):
-                return "color: #aaa"
-            if val > 0:
-                return "background-color: #d4edda; color: #155724; font-weight: 600"
-            if val < 0:
-                return "background-color: #f8d7da; color: #721c24; font-weight: 600"
+            if val is None or pd.isna(val): return "color:#aaa"
+            if val > 0: return "background-color:#d4edda;color:#155724;font-weight:600"
+            if val < 0: return "background-color:#f8d7da;color:#721c24;font-weight:600"
             return ""
 
-        for tab, metrics in [(calc_tab_a, metrics_a), (calc_tab_b, metrics_b)]:
-            with tab:
-                raw_calc = build_calc_df(metrics)
+        def fmt_calc(val, row):
+            if val is None or (isinstance(val, float) and pd.isna(val)): return "—"
+            if row in GROWTH_ROWS: return f"{val:.1%}"
+            if "Ratio" in row: return f"{val:.1f}×"
+            return f"{val:.2f}"
 
-                # Build display version with formatted strings
+        for tab, metrics in [(ct_a, metrics_a), (ct_b, metrics_b)]:
+            with tab:
+                raw_calc = pd.DataFrame({
+                    "EPS ($)":              reindex_str(metrics["eps"]),
+                    "Book Value/Share ($)": reindex_str(metrics["bvps"]),
+                    "CF/Share ($)":         reindex_str(metrics["cfps"]),
+                    "P/E Ratio (×)":        reindex_str(metrics["pe"]),
+                    "P/B Ratio (×)":        reindex_str(metrics["pb"]),
+                    "P/CF Ratio (×)":       reindex_str(metrics["pcf"]),
+                    "Revenue Growth":       reindex_str(metrics["rev_growth"]),
+                    "Net Income Growth":    reindex_str(metrics["ni_growth"]),
+                    "EPS Growth":           reindex_str(metrics["eps_growth"]),
+                }).T
+
                 display = raw_calc.copy().astype(object)
                 for row in raw_calc.index:
                     for col in raw_calc.columns:
-                        display.loc[row, col] = fmt_calc_cell(raw_calc.loc[row, col], row)
+                        display.loc[row, col] = fmt_calc(raw_calc.loc[row, col], row)
 
-                # Apply background color using raw float values
                 def apply_styles(df):
                     styles = pd.DataFrame("", index=df.index, columns=df.columns)
                     for row in GROWTH_ROWS:
@@ -414,20 +537,18 @@ if compare_clicked:
                                 styles.loc[row, col] = color_growth(raw_calc.loc[row, col])
                     return styles
 
-                styled = display.style.apply(apply_styles, axis=None)
-                st.dataframe(styled, use_container_width=True)
+                st.dataframe(display.style.apply(apply_styles, axis=None), use_container_width=True)
 
     # ── Footer ────────────────────────────────────────────────────────────────
 
     st.markdown("---")
     st.info(
-        "🔄 **Data is fetched live from SEC EDGAR every time you click Compare** — "
-        "always reflects the most recent 10-K filing on record. "
+        "🔄 Data is fetched live from SEC EDGAR every time you click Compare — "
+        "always reflects the most recent 10-K filing. "
         "Only US-listed public company stocks are supported. "
-        "ETFs (e.g. VOO, SPY), mutual funds, and indices are not available."
+        "ETFs (e.g. VOO, SPY) and mutual funds are not available."
     )
     st.caption(
-        "📁 Fundamentals: [SEC EDGAR XBRL API](https://www.sec.gov/dera/data/financial-statements) "
-        "— 10-K annual filings &nbsp;|&nbsp; "
-        "📈 Prices: Yahoo Finance (fiscal year-end closing price)"
+        "📁 Fundamentals: SEC EDGAR XBRL API (10-K filings) &nbsp;|&nbsp; "
+        "📈 Prices & movers: Yahoo Finance"
     )
