@@ -61,6 +61,24 @@ def get_cik(ticker: str) -> str | None:
     return mapping.get(ticker.upper())
 
 
+@st.cache_data(ttl=86400)
+def get_ticker_options() -> list[str]:
+    """
+    Return a sorted list of 'TICKER — Company Name' strings for autocomplete.
+    Sourced from SEC EDGAR's full company ticker list.
+    """
+    url = "https://www.sec.gov/files/company_tickers.json"
+    resp = requests.get(url, headers=EDGAR_HEADERS, timeout=15)
+    resp.raise_for_status()
+    data = resp.json()
+    options = [
+        f"{v['ticker'].upper()} — {v['name']}"
+        for v in data.values()
+        if v.get("ticker") and v.get("name")
+    ]
+    return sorted(options)
+
+
 # ── Step 2: Get company name and fiscal year end ──────────────────────────────
 
 @st.cache_data(ttl=86400)
@@ -186,12 +204,30 @@ def build_dataset(ticker: str) -> dict:
     """
     ticker = ticker.upper().strip()
 
+    # Check if this is an ETF or fund via Yahoo Finance — these have no 10-K filings
+    try:
+        import yfinance as _yf
+        quote_type = _yf.Ticker(ticker).info.get("quoteType", "")
+        if quote_type in ("ETF", "MUTUALFUND", "INDEX", "FUTURE", "CURRENCY"):
+            raise ValueError(
+                f"'{ticker}' is a {quote_type} — not a company stock. "
+                "This model is designed for individual company stocks that file "
+                "annual reports (10-K) with the SEC. ETFs and mutual funds do not "
+                "report revenue, net income, or equity, so ratios like P/E and P/B "
+                "cannot be calculated. Try a stock like AAPL, MSFT, TSLA, or NVDA."
+            )
+    except ValueError:
+        raise   # Re-raise our own error
+    except Exception:
+        pass    # If Yahoo check fails, continue and let EDGAR handle it
+
     # Look up the company's CIK
     cik = get_cik(ticker)
     if not cik:
         raise ValueError(
             f"'{ticker}' not found in SEC EDGAR. "
-            "Only US-listed public companies are available."
+            "Only US-listed public company stocks are supported. "
+            "ETFs, mutual funds, and foreign-listed companies are not available."
         )
 
     # Get company metadata
