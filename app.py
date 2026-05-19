@@ -217,15 +217,34 @@ MONTH_NAMES = {
 def chart_layout(fig, title, y_title):
     fig.update_layout(
         title_text=title,
-        height=380,
+        title_font_size=17,
+        height=400,
         hovermode="x unified",
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        margin=dict(t=60, b=55, l=70, r=30),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        margin_t=65,
+        margin_b=60,
+        margin_l=75,
+        margin_r=30,
+        legend_orientation="h",
+        legend_yanchor="bottom",
+        legend_y=1.02,
+        legend_xanchor="right",
+        legend_x=1,
     )
-    fig.update_xaxes(title_text="Fiscal Year", dtick=1, tickangle=-30)
-    fig.update_yaxes(title_text=y_title, zeroline=True)
+    fig.update_xaxes(
+        title_text="Fiscal Year",
+        dtick=1,
+        tickangle=-30,
+        gridcolor="rgba(255,255,255,0.12)",
+        linecolor="rgba(255,255,255,0.2)",
+    )
+    fig.update_yaxes(
+        title_text=y_title,
+        zeroline=True,
+        zerolinecolor="rgba(255,255,255,0.25)",
+        gridcolor="rgba(255,255,255,0.12)",
+    )
     return fig
 
 def get_vals(series, years, scale=1):
@@ -298,12 +317,12 @@ if compare_clicked:
 
     summary_rows = [
         ("Stock Price",               data_a["price"].get(last_year),          data_b["price"].get(last_year),          "${:.2f}"),
-        ("EPS (Earnings Per Share)",  metrics_a["eps"].get(last_year),         metrics_b["eps"].get(last_year),         "${:.2f}"),
-        ("P/E Ratio",                 metrics_a["pe"].get(last_year),          metrics_b["pe"].get(last_year),          "{:.1f}×"),
-        ("P/B Ratio",                 metrics_a["pb"].get(last_year),          metrics_b["pb"].get(last_year),          "{:.1f}×"),
-        ("P/CF Ratio",                metrics_a["pcf"].get(last_year),         metrics_b["pcf"].get(last_year),         "{:.1f}×"),
-        ("Revenue Growth (YoY %)",    metrics_a["rev_growth"].get(last_year),  metrics_b["rev_growth"].get(last_year),  "{:.1%}"),
-        ("Net Income Growth (YoY %)", metrics_a["ni_growth"].get(last_year),   metrics_b["ni_growth"].get(last_year),   "{:.1%}"),
+        ("EPS  =  Net Income ÷ Shares",       metrics_a["eps"].get(last_year),         metrics_b["eps"].get(last_year),         "${:.2f}"),
+        ("P/E  =  Price ÷ EPS",               metrics_a["pe"].get(last_year),          metrics_b["pe"].get(last_year),          "{:.1f}×"),
+        ("P/B  =  Price ÷ Book Value/Share",  metrics_a["pb"].get(last_year),          metrics_b["pb"].get(last_year),          "{:.1f}×"),
+        ("P/CF =  Price ÷ Cash Flow/Share",   metrics_a["pcf"].get(last_year),         metrics_b["pcf"].get(last_year),         "{:.1f}×"),
+        ("Revenue Growth (YoY %)",            metrics_a["rev_growth"].get(last_year),  metrics_b["rev_growth"].get(last_year),  "{:.1%}"),
+        ("Net Income Growth (YoY %)",         metrics_a["ni_growth"].get(last_year),   metrics_b["ni_growth"].get(last_year),   "{:.1%}"),
     ]
 
     summary_df = pd.DataFrame({
@@ -313,57 +332,11 @@ if compare_clicked:
     }).set_index("Metric")
 
     st.dataframe(summary_df, use_container_width=True)
-
-    # ── Metric Explanations ───────────────────────────────────────────────────
-
-    with st.expander("ℹ️ What do these metrics mean? (click to expand)"):
-        st.markdown("""
-**Stock Price** — The closing price of the stock on the company's fiscal year-end date.
-Used as the starting point for all valuation ratios below.
-
----
-
-**EPS — Earnings Per Share** — Net Income ÷ Shares Outstanding.
-Tells you how much profit the company generates *for each share* of stock.
-A higher EPS means each share represents more earning power.
-*Example: EPS of $6.20 means the company earned $6.20 for every share outstanding.*
-
----
-
-**P/E Ratio — Price-to-Earnings** — Stock Price ÷ EPS.
-The most widely used valuation ratio. Tells you how much investors are paying
-for every $1 of the company's annual earnings.
-- A **high P/E** (e.g. 40×) means investors expect strong future growth — or the stock may be expensive.
-- A **low P/E** (e.g. 10×) means it's cheaper relative to earnings — possibly undervalued or a slower-growing company.
-*Example: P/E of 37× means you're paying $37 for every $1 of annual profit.*
-
----
-
-**P/B Ratio — Price-to-Book** — Stock Price ÷ Book Value Per Share.
-Book Value = Total Assets minus Total Liabilities (what the company would be worth if liquidated).
-- A **high P/B** means investors are paying a large premium over accounting value — common in tech companies with strong brand/IP.
-- A **low P/B** can indicate undervaluation, or a capital-heavy business with thin margins.
-*Example: P/B of 61× (Apple) reflects that its brand and ecosystem are worth far more than its balance sheet.*
-
----
-
-**P/CF Ratio — Price-to-Cash-Flow** — Stock Price ÷ Operating Cash Flow Per Share.
-Similar to P/E, but uses real cash generated instead of accounting earnings.
-Cash flow is harder to manipulate than net income, making this a more conservative and reliable measure.
-- Lower P/CF = cheaper relative to cash generation.
-
----
-
-**Revenue Growth (YoY %)** — (This Year Revenue − Last Year Revenue) ÷ Last Year Revenue.
-YoY = Year-over-Year. Shows how fast the company is growing its total sales.
-Strong, consistent revenue growth is the primary indicator of a growth company.
-
----
-
-**Net Income Growth (YoY %)** — Same formula applied to Net Income (profit after all expenses and taxes).
-Shows whether the company is becoming more or less profitable over time.
-Revenue can grow while net income falls if costs are rising faster — this metric catches that.
-        """)
+    st.caption(
+        "**Reading the ratios:** Lower P/E, P/B, P/CF = cheaper relative to earnings/assets/cash. "
+        "Higher = market expects more growth, or stock may be pricey. "
+        "Stock Price shown at each company's fiscal year-end date."
+    )
 
     # ── Charts ────────────────────────────────────────────────────────────────
 
