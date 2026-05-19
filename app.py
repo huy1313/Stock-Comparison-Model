@@ -159,15 +159,21 @@ def get_top_movers(tickers):
 
 st.markdown("""
 <style>
-/* Sticky input row — targets the first columns block in the main area */
+/* Fixed input bar — always visible regardless of scroll */
 div[data-testid="stHorizontalBlock"]:first-of-type {
-    position: sticky;
-    top: 0;
-    z-index: 999;
+    position: fixed !important;
+    top: 2.875rem;
+    left: 21rem;
+    right: 0;
+    z-index: 9999;
     background-color: #0e1117;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #222;
+    padding: 0.6rem 2.5rem !important;
+    border-bottom: 1px solid #333;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+/* Push page content down so fixed bar doesn't cover the title */
+div.block-container {
+    padding-top: 5.5rem !important;
 }
 /* CSS tooltip for watchlist rows */
 .wl-row { position: relative; display: flex; justify-content: space-between;
