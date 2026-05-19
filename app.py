@@ -164,10 +164,11 @@ div[data-testid="stHorizontalBlock"]:first-of-type {
     position: fixed !important;
     top: 2.875rem;
     left: 21rem;
-    right: 0;
+    width: calc(100vw - 21rem) !important;
+    box-sizing: border-box !important;
     z-index: 9999;
     background-color: #0e1117;
-    padding: 0.6rem 2.5rem !important;
+    padding: 0.5rem 1rem !important;
     border-bottom: 1px solid #333;
     box-shadow: 0 2px 10px rgba(0,0,0,0.5);
 }
