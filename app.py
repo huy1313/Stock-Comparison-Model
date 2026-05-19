@@ -219,13 +219,12 @@ HOVER_LABEL = dict(
     font=dict(color="white", size=14, family="Arial"),
     bordercolor="#4a90d9",
     borderwidth=1,
-    namelength=-1,
 )
 
 def chart_layout(fig, title, y_title):
     fig.update_layout(
-        title=dict(text=title, font=dict(size=16, color="#111", family="Arial"), x=0),
-        font=dict(family="Arial", size=13, color="#222"),
+        title=dict(text=title, font=dict(size=16, color="#111111", family="Arial"), x=0),
+        font=dict(family="Arial", size=13, color="#222222"),
         plot_bgcolor="white", paper_bgcolor="white",
         height=380,
         margin=dict(t=60, b=55, l=70, r=30),
