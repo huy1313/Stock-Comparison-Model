@@ -85,7 +85,7 @@ def get_company_info(cik: str) -> dict:
 
 # ── Step 3: Download all XBRL financial facts for the company ────────────────
 
-@st.cache_data(ttl=3600)   # Cache for 1 hour (filing data changes infrequently)
+@st.cache_data(ttl=0)   # No cache — always pull the latest filing from EDGAR
 def get_company_facts(cik: str) -> dict:
     """
     Fetch all XBRL-tagged financial data for a company from EDGAR.
