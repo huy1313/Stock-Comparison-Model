@@ -214,43 +214,18 @@ MONTH_NAMES = {
     7:"July", 8:"August", 9:"September", 10:"October", 11:"November", 12:"December"
 }
 
-HOVER_LABEL = dict(
-    bgcolor="rgba(20, 20, 35, 0.95)",
-    font=dict(color="white", size=14, family="Arial"),
-    bordercolor="#4a90d9",
-    borderwidth=1,
-)
-
 def chart_layout(fig, title, y_title):
     fig.update_layout(
-        title=dict(text=title, font=dict(size=16, color="#111111", family="Arial"), x=0),
-        font=dict(family="Arial", size=13, color="#222222"),
-        plot_bgcolor="white", paper_bgcolor="white",
+        title_text=title,
         height=380,
-        margin=dict(t=60, b=55, l=70, r=30),
         hovermode="x unified",
-        hoverlabel=HOVER_LABEL,
-        legend=dict(
-            orientation="h", yanchor="bottom", y=1.02,
-            xanchor="right", x=1,
-            font=dict(size=13), bgcolor="rgba(255,255,255,0.9)",
-            bordercolor="#ddd", borderwidth=1,
-        ),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        margin=dict(t=60, b=55, l=70, r=30),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
-    fig.update_xaxes(
-        title_text="Fiscal Year",
-        tickformat="d", dtick=1, tickangle=-30,
-        tickfont=dict(size=12, color="#333"),
-        showgrid=True, gridcolor="#ececec",
-        linecolor="#ccc", linewidth=1,
-    )
-    fig.update_yaxes(
-        title_text=y_title,
-        tickfont=dict(size=12, color="#333"),
-        showgrid=True, gridcolor="#ececec",
-        linecolor="#ccc", linewidth=1,
-        zeroline=True, zerolinecolor="#bbb",
-    )
+    fig.update_xaxes(title_text="Fiscal Year", dtick=1, tickangle=-30)
+    fig.update_yaxes(title_text=y_title, zeroline=True)
     return fig
 
 def get_vals(series, years, scale=1):
