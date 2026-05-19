@@ -78,6 +78,9 @@ POPULAR_TICKERS = [
     ("WBA","Walgreens Boots Alliance"), ("MCK","McKesson Corp."), ("ABC","AmerisourceBergen"),
     ("SPG","Simon Property Group"), ("PLD","Prologis Inc."), ("AMT","American Tower Corp."),
     ("O","Realty Income Corp."), ("WELL","Welltower Inc."), ("PSA","Public Storage"),
+    # Semiconductors & AI
+    ("ARM","ARM Holdings plc"), ("SMCI","Super Micro Computer Inc."), ("MSTR","MicroStrategy Inc."),
+    ("AVGO","Broadcom Inc."), ("PANW","Palo Alto Networks Inc."), ("FTNT","Fortinet Inc."),
 ]
 
 # Build the dropdown option strings: "AAPL — Apple Inc."
@@ -96,6 +99,39 @@ GROWTH_WATCHLIST = [
     "ADBE","NFLX","SNOW","PLTR","CRWD","NET","DDOG","SHOP","UBER","COIN",
     "MSTR","ARM","SMCI","AVGO","ORCL","PANW","ZS","OKTA","FTNT","INTU",
 ]
+
+WATCHLIST_NAMES = {
+    "NVDA":"NVIDIA — Semiconductors / AI chips",
+    "META":"Meta Platforms — Social media / AR",
+    "AMZN":"Amazon — E-commerce / Cloud (AWS)",
+    "GOOGL":"Alphabet — Search / YouTube / Cloud",
+    "MSFT":"Microsoft — Software / Cloud (Azure)",
+    "AAPL":"Apple — Consumer electronics / Services",
+    "TSLA":"Tesla — Electric vehicles / Energy",
+    "AMD":"AMD — CPUs & GPUs / Data center chips",
+    "CRM":"Salesforce — CRM / Enterprise SaaS",
+    "NOW":"ServiceNow — IT workflow automation",
+    "ADBE":"Adobe — Creative & document software",
+    "NFLX":"Netflix — Streaming entertainment",
+    "SNOW":"Snowflake — Cloud data platform",
+    "PLTR":"Palantir — AI / Government analytics",
+    "CRWD":"CrowdStrike — Cybersecurity / EDR",
+    "NET":"Cloudflare — Network security / CDN",
+    "DDOG":"Datadog — Cloud monitoring / observability",
+    "SHOP":"Shopify — E-commerce platform",
+    "UBER":"Uber — Ride-sharing / Delivery",
+    "COIN":"Coinbase — Crypto exchange",
+    "MSTR":"MicroStrategy — Bitcoin treasury / BI",
+    "ARM":"ARM Holdings — Chip architecture licensing",
+    "SMCI":"Super Micro Computer — AI servers",
+    "AVGO":"Broadcom — Networking chips / Software",
+    "ORCL":"Oracle — Database / Cloud ERP",
+    "PANW":"Palo Alto Networks — Cybersecurity platform",
+    "ZS":"Zscaler — Zero-trust cloud security",
+    "OKTA":"Okta — Identity & access management",
+    "FTNT":"Fortinet — Network security appliances",
+    "INTU":"Intuit — TurboTax / QuickBooks / Mint",
+}
 
 @st.cache_data(ttl=300)   # Refresh every 5 minutes
 def get_top_movers(tickers):
@@ -120,8 +156,34 @@ def get_top_movers(tickers):
         return pd.DataFrame()
 
 with st.sidebar:
+    # ── Company Inputs (always visible) ──────────────────────────────────────
+    st.markdown("### 🔍 Compare Stocks")
+    default_a = next((o for o in TICKER_OPTIONS if o.startswith("AAPL —")), TICKER_OPTIONS[0])
+    default_b = next((o for o in TICKER_OPTIONS if o.startswith("MSFT —")), TICKER_OPTIONS[1])
+
+    sel_a = st.selectbox(
+        "🔵 Company A",
+        options=TICKER_OPTIONS,
+        index=TICKER_OPTIONS.index(default_a),
+        help="Type a ticker (e.g. AAPL) or company name to search",
+    )
+    ticker_a = parse_ticker(sel_a)
+
+    sel_b = st.selectbox(
+        "🟠 Company B",
+        options=TICKER_OPTIONS,
+        index=TICKER_OPTIONS.index(default_b),
+        help="Type a ticker (e.g. MSFT) or company name to search",
+    )
+    ticker_b = parse_ticker(sel_b)
+
+    compare_clicked = st.button("Compare ▶", type="primary", use_container_width=True)
+
+    st.markdown("---")
+
+    # ── Top Movers ────────────────────────────────────────────────────────────
     st.markdown("## 🚀 Top Movers Today")
-    st.caption("Growth stock watchlist · Refreshed every 5 min")
+    st.caption("Growth watchlist · Hover for details · Refreshed every 5 min")
 
     movers = get_top_movers(GROWTH_WATCHLIST)
 
@@ -131,9 +193,10 @@ with st.sidebar:
             price = row["Price ($)"]
             arrow = "▲" if chg >= 0 else "▼"
             color = "#27ae60" if chg >= 0 else "#e74c3c"
+            tooltip = WATCHLIST_NAMES.get(ticker, ticker)
             st.markdown(
-                f"<div style='display:flex;justify-content:space-between;"
-                f"padding:6px 4px;border-bottom:1px solid #333;'>"
+                f"<div title='{tooltip}' style='display:flex;justify-content:space-between;"
+                f"padding:6px 4px;border-bottom:1px solid #333;cursor:default;'>"
                 f"<span style='font-weight:600;'>{ticker}</span>"
                 f"<span style='color:{color};font-weight:600;'>"
                 f"{arrow} {chg:+.2f}%</span>"
@@ -149,9 +212,8 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### ℹ️ About")
     st.caption(
-        "This model compares US-listed public company stocks using data from "
-        "SEC EDGAR (10-K annual filings) and Yahoo Finance. "
-        "ETFs and mutual funds are not supported."
+        "Compares US-listed public company stocks using SEC EDGAR (10-K filings) "
+        "and Yahoo Finance. ETFs and mutual funds are not supported."
     )
 
 # ── Header ────────────────────────────────────────────────────────────────────
@@ -163,36 +225,6 @@ st.markdown(
     "Prices from **Yahoo Finance**."
 )
 st.markdown("---")
-
-# ── Ticker Input ──────────────────────────────────────────────────────────────
-
-default_a = next((o for o in TICKER_OPTIONS if o.startswith("AAPL —")), TICKER_OPTIONS[0])
-default_b = next((o for o in TICKER_OPTIONS if o.startswith("MSFT —")), TICKER_OPTIONS[1])
-
-col_a, col_b, col_btn = st.columns([3, 3, 1])
-
-with col_a:
-    sel_a = st.selectbox(
-        "🔵 Company A",
-        options=TICKER_OPTIONS,
-        index=TICKER_OPTIONS.index(default_a),
-        help="Type a ticker (e.g. AAPL) or company name to search",
-    )
-    ticker_a = parse_ticker(sel_a)
-
-with col_b:
-    sel_b = st.selectbox(
-        "🟠 Company B",
-        options=TICKER_OPTIONS,
-        index=TICKER_OPTIONS.index(default_b),
-        help="Type a ticker (e.g. MSFT) or company name to search",
-    )
-    ticker_b = parse_ticker(sel_b)
-
-with col_btn:
-    st.write("")
-    st.write("")
-    compare_clicked = st.button("Compare ▶", type="primary", use_container_width=True)
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
