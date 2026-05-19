@@ -173,7 +173,7 @@ col_a, col_b, col_btn = st.columns([3, 3, 1])
 
 with col_a:
     sel_a = st.selectbox(
-        "🔵 Company A — type to search",
+        "🔵 Company A",
         options=TICKER_OPTIONS,
         index=TICKER_OPTIONS.index(default_a),
         help="Type a ticker (e.g. AAPL) or company name to search",
@@ -182,7 +182,7 @@ with col_a:
 
 with col_b:
     sel_b = st.selectbox(
-        "🟠 Company B — type to search",
+        "🟠 Company B",
         options=TICKER_OPTIONS,
         index=TICKER_OPTIONS.index(default_b),
         help="Type a ticker (e.g. MSFT) or company name to search",
