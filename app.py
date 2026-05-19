@@ -159,14 +159,15 @@ def get_top_movers(tickers):
 
 st.markdown("""
 <style>
-/* Sticky input row */
-div[data-testid="stMain"] > div > div.block-container > div[data-testid="stVerticalBlock"]
-  > div[data-testid="stVerticalBlock"]:nth-child(3) {
+/* Sticky input row — targets the first columns block in the main area */
+div[data-testid="stHorizontalBlock"]:first-of-type {
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 999;
     background-color: #0e1117;
+    padding-top: 8px;
     padding-bottom: 8px;
+    border-bottom: 1px solid #222;
 }
 /* CSS tooltip for watchlist rows */
 .wl-row { position: relative; display: flex; justify-content: space-between;
