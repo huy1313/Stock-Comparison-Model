@@ -159,10 +159,29 @@ def get_top_movers(tickers):
 
 st.markdown("""
 <style>
-/* Fixed input bar — locked to top, always visible */
+/* ── Row 1: fixed title strip ── */
+#fixed-app-title {
+    position: fixed;
+    top: 2.875rem;
+    left: 21rem;
+    width: calc(100vw - 21rem);
+    box-sizing: border-box;
+    z-index: 9998;
+    background: #0e1117;
+    padding: 0.45rem 1.25rem 0.35rem;
+    border-bottom: 1px solid #222;
+}
+#fixed-app-title h1 {
+    font-size: 1.6rem;
+    margin: 0;
+    color: #fafafa;
+    font-weight: 700;
+    line-height: 1.2;
+}
+/* ── Row 2: fixed input bar below the title ── */
 div[data-testid="stHorizontalBlock"]:first-of-type {
     position: fixed !important;
-    top: 2.875rem;
+    top: 5.75rem;
     left: 21rem;
     width: calc(100vw - 21rem) !important;
     box-sizing: border-box !important;
@@ -172,9 +191,9 @@ div[data-testid="stHorizontalBlock"]:first-of-type {
     border-bottom: 1px solid #333;
     box-shadow: 0 2px 10px rgba(0,0,0,0.5);
 }
-/* Push all page content down so it appears below the fixed bar */
+/* Push page content below both fixed rows */
 div.block-container {
-    padding-top: 5rem !important;
+    padding-top: 10rem !important;
 }
 /* CSS tooltip for watchlist rows */
 .wl-row { position: relative; display: flex; justify-content: space-between;
@@ -185,6 +204,10 @@ div.block-container {
            white-space: normal; line-height: 1.4; pointer-events: none; }
 .wl-row:hover .wl-tt { display: block; }
 </style>
+
+<div id="fixed-app-title">
+  <h1>📊 Stock Comparison Model</h1>
+</div>
 """, unsafe_allow_html=True)
 
 with st.sidebar:
@@ -221,16 +244,6 @@ with st.sidebar:
         "Compares US-listed public company stocks using SEC EDGAR (10-K filings) "
         "and Yahoo Finance. ETFs and mutual funds are not supported."
     )
-
-# ── Header ────────────────────────────────────────────────────────────────────
-
-st.title("📊 Stock Comparison Model")
-st.markdown(
-    "Compare two US-listed public companies across 10 years of fundamental data. "
-    "Fundamentals from **SEC EDGAR** (official 10-K filings). "
-    "Prices from **Yahoo Finance**."
-)
-st.markdown("---")
 
 # ── Ticker Input ──────────────────────────────────────────────────────────────
 
