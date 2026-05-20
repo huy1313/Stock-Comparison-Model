@@ -179,7 +179,7 @@ st.markdown("""
     line-height: 1.2;
 }
 /* ── Row 2: fixed input bar below the title ── */
-div[data-testid="stHorizontalBlock"]:first-of-type {
+div[data-testid="stForm"] {
     position: fixed !important;
     top: 5.75rem;
     left: 21rem;
@@ -188,7 +188,9 @@ div[data-testid="stHorizontalBlock"]:first-of-type {
     z-index: 9999;
     background-color: #0e1117;
     padding: 0.6rem 1rem !important;
-    border-bottom: 1px solid #333;
+    border: none !important;
+    border-bottom: 1px solid #333 !important;
+    border-radius: 0 !important;
     box-shadow: 0 2px 10px rgba(0,0,0,0.5);
 }
 /* Push page content below both fixed rows */
@@ -250,30 +252,34 @@ with st.sidebar:
 default_a = next((o for o in TICKER_OPTIONS if o.startswith("AAPL —")), TICKER_OPTIONS[0])
 default_b = next((o for o in TICKER_OPTIONS if o.startswith("MSFT —")), TICKER_OPTIONS[1])
 
-col_a, col_b, col_btn = st.columns([3, 3, 1])
+with st.form("compare_form", border=False):
+    col_a, col_b, col_btn = st.columns([3, 3, 1])
 
-with col_a:
-    sel_a = st.selectbox(
-        "🔵 Company A",
-        options=TICKER_OPTIONS,
-        index=TICKER_OPTIONS.index(default_a),
-        help="Type to search by ticker or company name",
-    )
-    ticker_a = parse_ticker(sel_a)
+    with col_a:
+        sel_a = st.selectbox(
+            "🔵 Company A",
+            options=TICKER_OPTIONS,
+            index=TICKER_OPTIONS.index(default_a),
+            help="Type to search by ticker or company name",
+        )
 
-with col_b:
-    sel_b = st.selectbox(
-        "🟠 Company B",
-        options=TICKER_OPTIONS,
-        index=TICKER_OPTIONS.index(default_b),
-        help="Type to search by ticker or company name",
-    )
-    ticker_b = parse_ticker(sel_b)
+    with col_b:
+        sel_b = st.selectbox(
+            "🟠 Company B",
+            options=TICKER_OPTIONS,
+            index=TICKER_OPTIONS.index(default_b),
+            help="Type to search by ticker or company name",
+        )
 
-with col_btn:
-    st.write("")
-    st.write("")
-    compare_clicked = st.button("Compare ▶", type="primary", use_container_width=True)
+    with col_btn:
+        st.write("")
+        st.write("")
+        compare_clicked = st.form_submit_button(
+            "Compare ▶", type="primary", use_container_width=True
+        )
+
+ticker_a = parse_ticker(sel_a)
+ticker_b = parse_ticker(sel_b)
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
