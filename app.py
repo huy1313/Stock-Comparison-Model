@@ -179,23 +179,23 @@ st.markdown("""
     line-height: 1.2;
 }
 /* ── Row 2: fixed input bar below the title ── */
-div[data-testid="stForm"] {
+/* st.container(key="input_bar") renders with CSS class st-key-input_bar */
+.st-key-input_bar,
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-input_bar) {
     position: fixed !important;
-    top: 5.75rem;
+    top: 6.5rem;
     left: 21rem;
     width: calc(100vw - 21rem) !important;
     box-sizing: border-box !important;
     z-index: 9999;
     background-color: #0e1117;
     padding: 0.6rem 1rem !important;
-    border: none !important;
     border-bottom: 1px solid #333 !important;
-    border-radius: 0 !important;
     box-shadow: 0 2px 10px rgba(0,0,0,0.5);
 }
 /* Push page content below both fixed rows */
 div.block-container {
-    padding-top: 10rem !important;
+    padding-top: 11rem !important;
 }
 /* CSS tooltip for watchlist rows */
 .wl-row { position: relative; display: flex; justify-content: space-between;
@@ -252,7 +252,7 @@ with st.sidebar:
 default_a = next((o for o in TICKER_OPTIONS if o.startswith("AAPL —")), TICKER_OPTIONS[0])
 default_b = next((o for o in TICKER_OPTIONS if o.startswith("MSFT —")), TICKER_OPTIONS[1])
 
-with st.form("compare_form", border=False):
+with st.container(key="input_bar"):
     col_a, col_b, col_btn = st.columns([3, 3, 1])
 
     with col_a:
@@ -274,7 +274,7 @@ with st.form("compare_form", border=False):
     with col_btn:
         st.write("")
         st.write("")
-        compare_clicked = st.form_submit_button(
+        compare_clicked = st.button(
             "Compare ▶", type="primary", use_container_width=True
         )
 
