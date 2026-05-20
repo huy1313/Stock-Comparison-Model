@@ -159,22 +159,22 @@ def get_top_movers(tickers):
 
 st.markdown("""
 <style>
-/* Fixed input bar — always visible regardless of scroll */
+/* Fix overflow on intermediate containers only — lets sticky work without breaking page scroll */
+div.block-container,
+div[data-testid="stVerticalBlock"] {
+    overflow: visible !important;
+}
+/* Sticky input bar — in normal position below title on load, sticks to top on scroll */
 div[data-testid="stHorizontalBlock"]:first-of-type {
-    position: fixed !important;
-    top: 2.875rem;
-    left: 21rem;
-    width: calc(100vw - 21rem) !important;
-    box-sizing: border-box !important;
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    top: 0 !important;
     z-index: 9999;
     background-color: #0e1117;
-    padding: 0.5rem 1rem !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
     border-bottom: 1px solid #333;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-}
-/* Push page content down so fixed bar doesn't cover the title */
-div.block-container {
-    padding-top: 5.5rem !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.4);
 }
 /* CSS tooltip for watchlist rows */
 .wl-row { position: relative; display: flex; justify-content: space-between;
